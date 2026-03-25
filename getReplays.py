@@ -6,10 +6,12 @@ fcade_port = 7100
 
 fcade_socket = socket.create_connection(address=(fcade_address, fcade_port))
 
-quark_id_subfix = '9749'
-quark_id = '1773245934968-9749.7'
-# samcog vs sleepw4lker -> 1773245934968-9749.7
-# pngyakuza vs ghusek -> 1773245874617-6933.7
+date_id = '1773245874617'
+sub_id = '6933'
+quark_id = date_id + '-' + sub_id
+# samcog vs sleepw4lker -> 1773245934968-9749
+# pngyakuza vs ghusek -> 1773245874617-6933
+# 1773740750671-9930
 
 msg_1 = b'\x00\x00\x00\x14'
 
@@ -17,7 +19,7 @@ msg_2 = b'\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1d\x00\x
 
 msg_3 = b'\x00\x00\x00 '
 
-msg_4 = b'\x00\x00\x00\x02\x00\x00\x00\x14\x00\x00\x00\x14' + quark_id.encode() + b'\x00\x00\x00 \x00\x00\x00\x03\x00\x00\x00\x0c\x00\x00\x00\x14' + quark_id.encode()
+msg_4 = b'\x00\x00\x00\x02\x00\x00\x00\x14\x00\x00\x00\x14' + (quark_id + '.7').encode() + b'\x00\x00\x00 \x00\x00\x00\x03\x00\x00\x00\x0c\x00\x00\x00\x14' + (quark_id + '.7').encode()
 
 msg_arr = {msg_1, msg_2, msg_3, msg_4}
 
@@ -59,7 +61,7 @@ query:str = query_b.decode(encoding='utf-8')
 player_1_info = Player_Info(query[16:32])
 player_2_info = Player_Info(query[32:51])
 
-file_path = player_1_info.name + '_' + player_2_info.name + '_' + quark_id_subfix + '.fr'
+file_path = player_1_info.name + '_' + player_2_info.name + '_' + date_id + '_1' + '.fr'
 with open(file_path, 'wb+') as replay_f:
     buf = fcade_socket.recv(1024)
     while len(buf) > 0:
