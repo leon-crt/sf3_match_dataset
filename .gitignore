@@ -1,0 +1,7 @@
+# GIT IGNORE #
+
+# COLLECTED RECORDINGS #
+*.fr
+
+# API CONFIG FILE #
+./config.json
