@@ -5,3 +5,6 @@
 
 # API CONFIG FILE #
 ./config.json
+
+# ROMS #
+*.zip
