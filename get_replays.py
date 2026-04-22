@@ -103,8 +103,9 @@ def getReplays(limit, offset, username, cookies, ua, url):
         # only process the replays that have at least one completed match
         if rep_json['num_matches'] >= 1: 
             replays.append(ReplaySchema(**rep_json))
-
-    return replays, len(replay_resp['results']['results']) # return the total number of fetched replays as well so we can advance the offset
+    total = len(replay_resp['results']['results'])
+    print("Fetched " + str(total) + " replays: " + str(len(replays)) + " are of the appropriate minimum length and will be processed.")
+    return replays, total # return the total number of fetched replays as well so we can advance the offset correctly
 
 def enumWindowsProc(hwnd, lParam):
     if (lParam is None) or ((lParam is not None) and win32process.GetWindowThreadProcessId(hwnd)[1] == lParam):
@@ -186,7 +187,7 @@ while(True):
 
         # CAN POSSIBLY HANDLE MORE THAN ONE EMU INSTANCE AT ONCE (but would not know how to identify which process is sending signals)
         # execute in command line: ./fcadefbneo.exe filename:<nameOfFile> quark:stream,sfiii3nr1,<quarkID>.9,7100 <path-to-lua> 
-        emu_proc = subprocess.Popen(["./emulator_build/fcadefbneo.exe", "filename:" + str(replay.players[0].rank) + '-' + replay.players[0].name + "-" + replay.players[1].name + "_" + replay.quarkid + ".fr", "quark:stream,sfiii3nr1," + replay.quarkid + ".9,7100", "./emulator_build/replay_extraction.lua"])
+        emu_proc = subprocess.Popen(["./emulator_build/fcadefbneo.exe", "filename:" + str(replay.players[0].rank) + str(replay.players[1].rank) + '-' + replay.players[0].name + "-" + replay.players[1].name + "_" + replay.quarkid + ".fr", "quark:stream,sfiii3nr1," + replay.quarkid + ".9,7100", "./emulator_build/replay_extraction.lua"])
         emu_killed = False
         # CREATE TCP SERVER TO KNOW WHEN LUA HAS FINISHED PROCESSING THE REPLAY
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
