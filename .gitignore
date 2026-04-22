@@ -3,8 +3,12 @@
 # COLLECTED RECORDINGS #
 *.fr
 
-# API CONFIG FILE #
-./config.json
+# CONFIG FILES #
+config.json
+emulator_build/config/
 
 # ROMS #
 *.zip
+
+# PYTHON #
+__pycache__/
