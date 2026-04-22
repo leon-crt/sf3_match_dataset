@@ -104,7 +104,7 @@ def getReplays(limit, offset, username, cookies, ua, url):
         if rep_json['num_matches'] >= 1: 
             replays.append(ReplaySchema(**rep_json))
 
-    return replays
+    return replays, len(replay_resp['results']['results']) # return the total number of fetched replays as well so we can advance the offset
 
 def enumWindowsProc(hwnd, lParam):
     if (lParam is None) or ((lParam is not None) and win32process.GetWindowThreadProcessId(hwnd)[1] == lParam):
@@ -170,12 +170,14 @@ print("Initiating Replay Recording")
 
 # Collection loop that will be interrupted when no more replays are returned by the API call
 while(True):
-    replays = getReplays(100, offset, username, cookies, ua, url)
+    replays, total_fetched = getReplays(100, offset, username, cookies, ua, url)
     if len(replays) < 1:
         print('No More Replays were returned by the API call, processed a total of ' + str(offset) + ' replays')
         break
     for replay in replays:
         replay_buf.push(replay)
+    
+    offset += total_fetched
 
     while(replay_buf.size() > 0):
         replay = replay_buf.pop()
@@ -185,6 +187,7 @@ while(True):
         # CAN POSSIBLY HANDLE MORE THAN ONE EMU INSTANCE AT ONCE (but would not know how to identify which process is sending signals)
         # execute in command line: ./fcadefbneo.exe filename:<nameOfFile> quark:stream,sfiii3nr1,<quarkID>.9,7100 <path-to-lua> 
         emu_proc = subprocess.Popen(["./emulator_build/fcadefbneo.exe", "filename:" + str(replay.players[0].rank) + '-' + replay.players[0].name + "-" + replay.players[1].name + "_" + replay.quarkid + ".fr", "quark:stream,sfiii3nr1," + replay.quarkid + ".9,7100", "./emulator_build/replay_extraction.lua"])
+        emu_killed = False
         # CREATE TCP SERVER TO KNOW WHEN LUA HAS FINISHED PROCESSING THE REPLAY
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((HOST,PORT))
@@ -217,13 +220,16 @@ while(True):
                         else:
                             first_ping = time.time()
                     except socket.timeout: # Likely a guru meditation error, skip the replay
+                        print("Error - could not launch emulator correctly for this replay. Skipping to the next replay.")
+                        emu_proc.kill()
+                        emu_killed = True
                         break
-        # kill emulator process and go on to the next replay
-        win32gui.EnumWindows(enumWindowsProc, emu_proc.pid)
-        time.sleep(1) # not sure if this is necessary but wouldn't want overlapping instances of the emulator
+        # kill emulator process and go on to the next replay if it's not dead yet because of an error
+        if (not emu_killed):
+            win32gui.EnumWindows(enumWindowsProc, emu_proc.pid)
+            time.sleep(1) # not sure if this is necessary but wouldn't want overlapping instances of the emulator
 
     # update config Json with new offset 
-    offset += len(replays)
     with open("config.json", 'w') as f:
         config['offset'] = offset
         json.dump(config, f, ensure_ascii=False, indent=4)
