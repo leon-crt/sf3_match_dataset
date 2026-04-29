@@ -13,3 +13,6 @@ emulator_build/recordings/
 
 # PYTHON #
 __pycache__/
+
+# LOG FILES #
+*log.txt
