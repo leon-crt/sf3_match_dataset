@@ -182,12 +182,19 @@ while(True):
 
     while(replay_buf.size() > 0):
         replay = replay_buf.pop()
+
+        # get player side
+        player_side = 1
+        if(replay.players[0].name == username.replace(' ', '_')):
+            player_side = 1
+        else:
+            player_side = 2
         
         print("Recording replay " + replay.quarkid + " - played on date: " + datetime.fromtimestamp(replay.date/1000).strftime('%Y-%m-%d %H:%M:%S'))
 
         # CAN POSSIBLY HANDLE MORE THAN ONE EMU INSTANCE AT ONCE (but would not know how to identify which process is sending signals)
         # execute in command line: ./fcadefbneo.exe filename:<nameOfFile> quark:stream,sfiii3nr1,<quarkID>.9,7100 <path-to-lua> 
-        emu_proc = subprocess.Popen(["./emulator_build/fcadefbneo.exe", "filename:" + str(replay.players[0].rank) + str(replay.players[1].rank) + '-' + replay.players[0].name + "-" + replay.players[1].name + "_" + replay.quarkid + ".fr", "quark:stream,sfiii3nr1," + replay.quarkid + ".9,7100", "./emulator_build/replay_extraction.lua"])
+        emu_proc = subprocess.Popen(["./emulator_build/fcadefbneo.exe", "filename:" + str(player_side) + '-' + str(replay.players[0].rank) + str(replay.players[1].rank) + '-' + replay.players[0].name + "-" + replay.players[1].name + "_" + replay.quarkid + ".fr", "quark:stream,sfiii3nr1," + replay.quarkid + ".9,7100", "./emulator_build/replay_extraction.lua"])
         emu_killed = False
         # CREATE TCP SERVER TO KNOW WHEN LUA HAS FINISHED PROCESSING THE REPLAY
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:

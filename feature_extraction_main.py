@@ -4,7 +4,6 @@ import re
 import subprocess
 import socket
 import time
-from datetime import datetime
 import win32process
 import win32gui
 import win32api
@@ -54,11 +53,12 @@ total_replays = os.listdir(path)
 replay_q = Queue([])
 for name in total_replays:
     # extract the quarkid
+    player_side = name[0] # first number in the string is which player is the expert
     name = name[::-1] # reverse the string
     quarkid = re.match(r"^[rf\.]{\d,4}\-\d*\_",name).group()
     quarkid = quarkid[::-1].replace('.fr', '').replace('_', '') # put the string in the right order again and remove the .fr extension and the _
     # push the replay to the queue
-    replay_q.push([name, quarkid])
+    replay_q.push([name, quarkid, player_side])
 
 # Collection loop that will be interrupted when no more replays are returned by the API call
 while(replay_q.size() > 0):
@@ -98,6 +98,8 @@ while(replay_q.size() > 0):
                         data = conn.recv(1024)
                         if first_ping == None:
                             conn.send(replay[1])
+                            conn.recv(1024)
+                            conn.send(replay[2])
                     if(first_ping != None):
                         second_ping = time.time()
                     else:

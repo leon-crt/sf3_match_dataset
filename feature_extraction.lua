@@ -11,6 +11,7 @@ Buff_size = 100
 Turbo = false
 StunnedP1, StunnedP2 = false, false
 CanRecoverFromStunP1, CanRecoverFromStunP2 = false, false
+RoundNumber = 0
 
 StateData = 
 {
@@ -54,32 +55,28 @@ end
 P1 = StateData:new()
 P2 = StateData:new()
 
+-- Might have to change the order in this not sure if right
+ChIdToName = {"Akuma", "Yun", "Ryu", "Urien", "Remy", "Oro","Necro", "Q", "Dudley","Ibuki","ChunLi", "Elena","Sean", "Makoto", "Hugo",  "Alex", "Twelve", "Ken", "Yang"}
+
 -- Get quarkid from TCP socket with main python script
-local serverResp
+QuarkId = ""
 local Host, Port = "127.0.0.1", 42069
-        local Tcp = assert(socket.tcp())
-        Tcp:connect(Host, Port)
-        Tcp:send("open!\n")
-        serverResp = Tcp:receive(1024)
-        Tcp:close()
-
-print(serverResp)
-
--- Create csv file and set headers
-local file = assert(io.open("fe_test.csv", "w"))
-file:write("Frame,Player,Position,Health,Meter,Stun,Hit,Left,Up,Right,Down,Lp,Mp,Hp,Lk,Mk,Hk,Start,Coin\n")
-io.close(file)
+local Tcp = assert(socket.tcp())
+Tcp:connect(Host, Port)
+Tcp:send("open!\n")
+QuarkId = Tcp:receive(1024)
+Tcp:send("received quarkid")
+PlayerSide = Tcp:receive(1024)
+Tcp:close()
 
 --Formatting Functions
-function FormatInputs(inputs, i)
+function FormatInputs(inputs)
     local bToN = { [true] = 1, [false] = 0} -- damn what a language
-    -- print(i)
-    -- print(inputs)
     return bToN[inputs["Left"]] .. "," .. bToN[inputs["Up"]] .. "," .. bToN[inputs["Right"]].. "," .. bToN[inputs["Down"]].. "," .. bToN[inputs["Weak Punch"]].. "," .. bToN[inputs["Medium Punch"]].. "," .. bToN[inputs["Strong Punch"]].. "," .. bToN[inputs["Weak Kick"]].. "," .. bToN[inputs["Medium Kick"]].. "," .. bToN[inputs["Strong Kick"]].. "," .. bToN[inputs["Start"]].. "," .. bToN[inputs["Coin"]]
 end
 
-function FormatValues(posX, posY, health, super, stun, hit, inputs, i)
-    return tostring(posX) .. ";" .. tostring(posY) .. "," .. tostring(health) .. "," .. tostring(super) .. "," .. tostring(stun) .. "," .. tostring(hit) .. "," .. FormatInputs(inputs, i)
+function FormatValues(posX, posY, health, super, stun, hit, inputs)
+    return tostring(posX) .. ";" .. tostring(posY) .. "," .. tostring(health) .. "," .. tostring(super) .. "," .. tostring(stun) .. "," .. tostring(hit) .. "," .. FormatInputs(inputs)
 end
 
 -- Writing to file function
@@ -87,7 +84,7 @@ function WriteToFile(p1, p2)
     local formatted_data = ""
     for i=1,Buff_size
     do
-        formatted_data = formatted_data .. tostring(Frame_counter-Buff_size+i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.hit[i], p1.inputs[i], i) .. "\n" .. tostring(Frame_counter-Buff_size+i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.hit[i], p2.inputs[i], i) .. "\n"
+        formatted_data = formatted_data .. tostring(Frame_counter-Buff_size+i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.hit[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter-Buff_size+i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.hit[i], p2.inputs[i]) .. "\n"
     end
     local file = assert(io.open("fe_test.csv", "a+"))
     file:write(formatted_data)
@@ -118,6 +115,13 @@ function FeatureExtraction()
         -- Extract P1 and P2 character and super IDs
         P1.characterId, P2.characterId = memory.readbyte(0x02011387), memory.readbyte(0x02011388)
         P1.superId, P2.superId = memory.readbyte(0x0201138B), memory.readbyte(0x0201138C)
+
+        -- Create csv file and set headers
+        local filename = PlayerSide .. "-" .. ChIdToName[P1.characterId.tointeger()] .. P1.superId .. "-" .. ChIdToName[P2.characterId.tointeger()] .. P2.superId .. "-" .. QuarkId .. "-" .. RoundNumber .. ".csv"
+        local file = assert(io.open(filename, "w"))
+        file:write("Frame,Player,Position,Health,Meter,Stun,Hit,Left,Up,Right,Down,Lp,Mp,Hp,Lk,Mk,Hk,Start,Coin\n")
+        io.close(file)
+
         print("ch.ID P1: " .. P1.characterId, "- ch.ID P2: " .. P2.characterId)
         print("super ID P1: " .. P1.superId, "- super ID P2: " .. P2.superId)
     elseif in_match == 2 -- after round start
@@ -253,6 +257,11 @@ function FeatureExtraction()
         WriteToFile(P1, P2)
         P1:wipe()
         P2:wipe()
+        P1.characterId = ""
+        P1.superId = ""
+        P2.characterId = ""
+        P2.superId = ""
+        RoundNumber = RoundNumber + 1
     else
         return nil
     end
