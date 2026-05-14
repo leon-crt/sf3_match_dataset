@@ -6,7 +6,10 @@
 # CONFIG FILES #
 config.json
 emulator_build/config/
+
+# DATASET ITEMS
 emulator_build/recordings/
+features/
 
 # ROMS #
 *.zip
