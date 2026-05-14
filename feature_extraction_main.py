@@ -46,27 +46,30 @@ else:
     print("Provide a path for the feature extraction")
     sys.exit()
 
-print("Initiating Feature Extraction")
-
 # Gather the quarkids
 total_replays = os.listdir(path)
 replay_q = Queue([])
 for name in total_replays:
     # extract the quarkid
     player_side = name[0] # first number in the string is which player is the expert
+    print(name)
+    print(player_side)
     name = name[::-1] # reverse the string
-    quarkid = re.match(r"^[rf\.]{\d,4}\-\d*\_",name).group()
+    print(name)
+    quarkid = re.match(r"^[rf\.]+\d*\-\d*\_",name).group()
     quarkid = quarkid[::-1].replace('.fr', '').replace('_', '') # put the string in the right order again and remove the .fr extension and the _
     # push the replay to the queue
-    replay_q.push([name, quarkid, player_side])
+    replay_q.push([name[::-1], quarkid, player_side])
+
+processed_replay_number = 0
 
 # Collection loop that will be interrupted when no more replays are returned by the API call
 while(replay_q.size() > 0):
     replay = replay_q.pop()
     
-    print("Extracting features of replay " + replay.quarkid)
+    print("Extracting features of replay " + replay[1])
     # execute in command line: ./fcadefbneo.exe <path-to-filename> <path-to-lua> 
-    emu_proc = subprocess.Popen(["./emulator_build/fcadefbneo.exe", replay[0], "./emulator_build/replay_extraction.lua"])
+    emu_proc = subprocess.Popen(["./emulator_build/fcadefbneoNormal.exe", path + replay[0], "./feature_extraction.lua"])
     emu_killed = False
     # CREATE TCP SERVER TO KNOW WHEN LUA HAS FINISHED PROCESSING THE REPLAY
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -87,6 +90,7 @@ while(replay_q.size() > 0):
                         data = conn.recv(1024)
                 # Timeout means the replay is over and the recording is done
                 except socket.timeout:
+                    processed_replay_number += 1
                     break
             # send quarkid and gather info to set appropriate timeout 
             else:
@@ -96,10 +100,13 @@ while(replay_q.size() > 0):
                     conn,addr = s.accept()
                     with conn:
                         data = conn.recv(1024)
+                        print(data)
                         if first_ping == None:
-                            conn.send(replay[1])
-                            conn.recv(1024)
-                            conn.send(replay[2])
+                            # send the quarkid
+                            conn.send(bytes(replay[1] + '\r\n', "utf-8"))
+                            print(conn.recv(1024))
+                            # send the player side
+                            conn.send(bytes(replay[2], "utf-8"))
                     if(first_ping != None):
                         second_ping = time.time()
                     else:
@@ -113,3 +120,5 @@ while(replay_q.size() > 0):
     if (not emu_killed):
         win32gui.EnumWindows(enumWindowsProc, emu_proc.pid)
         time.sleep(1) # not sure if this is necessary but wouldn't want overlapping instances of the emulator
+
+print("Finished processing replays, processed a total of: " + str(processed_replay_number))

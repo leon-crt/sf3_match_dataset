@@ -7,15 +7,25 @@ local socket = require('socket')
 -- Speed up the emulation
 emu.speedmode("turbo")
 
+Host, Port = "127.0.0.1", 42069
+Tcp = assert(socket.tcp())
+Tcp:settimeout(0) -- make pings non blocking so that the emulator doesnt crash
+Tcp:connect(Host, Port)
+Tcp:send("still recording!\n")
+
 -- Send TCP message while recording and then when no more messages are sent timeout goes off on server side that kills the process
 local function check_emu_state()
     if emu.framecount() % 120 == 0
     then
-        local Host, Port = "127.0.0.1", 42069
-        local Tcp = assert(socket.tcp())
-        Tcp:connect(Host, Port)
-        Tcp:send("still recording!\n")
-        Tcp:close()
+
+        local bytes = Tcp:send("still recording!\n")
+        if bytes == nil
+        then
+            Tcp = assert(socket.tcp())
+            Tcp:settimeout(0) -- make pings non blocking so that the emulator doesnt crash
+            Tcp:connect(Host, Port)
+            Tcp:send("still recording!\n")
+        end
     end
 end
 
