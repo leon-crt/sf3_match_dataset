@@ -3,7 +3,9 @@ package.cpath = "lua_libs/socket/core.dll;" .. "lua_libs/mime/core.dll;"
 local socket = require('socket')
 
 -- TODO: 
---      - 
+--      - Fix end of round buff size frame indexing error [test]
+--      - Fix previousstun logic that misses a frame every time the buffers are emptied
+--      - Change the position field in the csv to be two separate columns
 
 Frame_counter = 1
 Buff_size = 100
@@ -87,7 +89,7 @@ function WriteToFile(p1, p2)
     local formatted_data = ""
     for i=1, #p1.posX
     do
-        formatted_data = formatted_data .. tostring(Frame_counter - Buff_size+i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - Buff_size+i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.inputs[i]) .. "\n"
+        formatted_data = formatted_data .. tostring(Frame_counter - #p1.posX + i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - Buff_size+i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.inputs[i]) .. "\n"
     end
     local file = assert(io.open("../features/" .. Filename, "a+"))
     file:write(formatted_data)
@@ -149,7 +151,7 @@ function FeatureExtraction()
         then
             StunnedP1 = true
         end
-        if (stunP2 == 0 and previousStunP2 > 10) or (not StunnedP1 and stateP1 == 70)
+        if (stunP2 == 0 and previousStunP2 > 10) or (not StunnedP2 and stateP2 == 70)
         then
             StunnedP2 = true
         end

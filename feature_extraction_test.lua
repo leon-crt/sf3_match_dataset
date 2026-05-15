@@ -150,7 +150,7 @@ function FeatureExtraction()
         then
             StunnedP1 = true
         end
-        if (stunP2 == 0 and previousStunP2 > 10) or (not StunnedP1 and stateP1 == 70)
+        if (stunP2 == 0 and previousStunP2 > 10) or (not StunnedP2 and stateP2 == 70)
         then
             StunnedP2 = true
         end
