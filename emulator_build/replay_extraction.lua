@@ -9,7 +9,6 @@ emu.speedmode("turbo")
 
 Host, Port = "127.0.0.1", 42069
 Tcp = assert(socket.tcp())
-Tcp:settimeout(0) -- make pings non blocking so that the emulator doesnt crash
 Tcp:connect(Host, Port)
 Tcp:send("still recording!\n")
 
@@ -22,7 +21,6 @@ local function check_emu_state()
         if bytes == nil
         then
             Tcp = assert(socket.tcp())
-            Tcp:settimeout(0) -- make pings non blocking so that the emulator doesnt crash
             Tcp:connect(Host, Port)
             Tcp:send("still recording!\n")
         end
