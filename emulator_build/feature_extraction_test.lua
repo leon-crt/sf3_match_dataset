@@ -3,8 +3,8 @@ package.cpath = "lua_libs/socket/core.dll;" .. "lua_libs/mime/core.dll;"
 local socket = require('socket')
 
 -- TODO: 
---      - Refactor Stun management and Hitstun management into a separate function [test]
---      - Test hit detection [test]
+--      - Refactor Stun management and Hitstun management into a separate function [done]
+--      - Test hit detection [done]
 
 Frame_counter = 1
 Buff_size = 100
@@ -208,88 +208,13 @@ function FeatureExtraction()
         StunnedP1, CanRecoverFromStunP1, isStunnedP1 = StunHandler(P1, stunP1, StunnedP1, stateP1, isStunnedP1, CanRecoverFromStunP1)
         StunnedP2, CanRecoverFromStunP2, isStunnedP2 = StunHandler(P2, stunP2, StunnedP2, stateP2, isStunnedP2, CanRecoverFromStunP2)
 
-        -- if (stunP1 == 0 and P1.previousStun > 10) or (not StunnedP1 and stateP1 == 70)
-        -- then
-        --     StunnedP1 = true
-        -- end
-        -- if (stunP2 == 0 and P2.previousStun > 10) or (not StunnedP2 and stateP2 == 70)
-        -- then
-        --     StunnedP2 = true
-        -- end
-        
-        -- if stateP1 == 70
-        -- then
-        --     CanRecoverFromStunP1 = true
-        -- end
-        -- if stateP2 == 70
-        -- then
-        --     CanRecoverFromStunP2 = true
-        -- end
-        
-        -- if StunnedP1
-        -- then
-        --     -- First condition means that at one point the character was stunned and now it's not anymore. second means the character was hit while stunned which causes them to not be stunned anymore
-        --     if (stateP1 ~= 70 and CanRecoverFromStunP1) or (stunP1 > 0) 
-        --     then
-        --         StunnedP1 = false
-        --         CanRecoverFromStunP1 = false
-        --         isStunnedP1 = 0
-        --     else
-        --         isStunnedP1 = 1
-        --     end
-        -- end
-        
-        -- if StunnedP2
-        -- then
-        --     if (stateP2 ~= 70 and CanRecoverFromStunP2) or (stunP2 > 0) 
-        --     then
-        --         StunnedP2 = false
-        --         CanRecoverFromStunP2 = false
-        --         isStunnedP2 = 0
-        --     else
-        --         isStunnedP2 = 1
-        --     end
-        -- end
-
         -- hitstun detection
         hitP1, HitStateP1 = IsHit(P1, HitStateP1, hitP1, stunP1, stateP1)
         hitP2, HitStateP2 = IsHit(P2, HitStateP2, hitP2, stunP2, stateP2)
-        -- if hitP1 == 0 and stunP1 > P1.previousStun -- sometimes the character is hit but it is not registered by the variables, so get the info from the stun
-        -- then
-        --     hitP1 = 1
-        --     HitStateP1 = stateP1
-        -- end
         
-        -- if hitP2 == 0 and stunP2 > P2.previousStun
-        -- then
-        --     hitP2 = 1
-        --     HitStateP2 = stateP2
-        -- end
-
-        -- if HitStateP1 ~= nil
-        -- then
-        --     if HitStateP1 ~= stateP1 -- if the state has changed since the character got hit we can assume they're not in hitstun anymore
-        --     then
-        --         hitP1 = 0
-        --         HitStateP1 = nil
-        --     else
-        --         hitP1 = 1
-        --     end
-        -- end
-
-        -- if HitStateP2 ~= nil
-        -- then
-        --     if HitStateP2 ~= stateP2
-        --     then
-        --         hitP2 = 0
-        --         HitStateP2 = nil
-        --     else
-        --         hitP2 = 1
-        --     end
-        -- end
         
         -- DEBUG
-        if Turbo then emu.speedmode("normal") Turbo = false end
+        -- if Turbo then emu.speedmode("normal") Turbo = false end
         -- print("position P1: " .. posXP1 .. ", " .. posYP1)
         -- print("position P2: " .. posXP2 .. ", " .. posYP2)
         -- print("health P1: " .. healthP1)
@@ -305,10 +230,10 @@ function FeatureExtraction()
 
         -- print("isStunnedP1: " .. isStunnedP1)
         -- print("isStunnedP2: " .. isStunnedP2)
-        print("being thrown P1: " .. tostring(beingThrownP1))
-        print("being thrown P2: " .. tostring(beingThrownP2))
-        print("state P1: " .. stateP1)
-        print("state P2: " .. stateP2)
+        -- print("being thrown P1: " .. tostring(beingThrownP1))
+        -- print("being thrown P2: " .. tostring(beingThrownP2))
+        -- print("state P1: " .. stateP1)
+        -- print("state P2: " .. stateP2)
 
         -- Extract environment info (whether an enemy projectile is on the screen and its position)
         -- skip for now because it requires scanning through hitboxes and likely we can't have only one projectile but we need all of them (30 max) which means
@@ -370,8 +295,8 @@ function FeatureExtraction()
         end
 
         -- update the classes one last time for the end of match result (inputs are the same as previous frame for convenience)
-        P1:update(P1.posX[#P1.posX], P1.posY[#P1.posY], finalHealthP1, P1.super[#P1.super], P1.stun[#P1.stun], P1.isStunned[#P1.isStunned], hitP1, P1.inputs[#P1.inputs])
-        P2:update(P2.posX[#P2.posX], P2.posY[#P2.posY], finalHealthP2, P2.super[#P2.super], P2.stun[#P2.stun], P2.isStunned[#P2.isStunned], hitP2, P2.inputs[#P2.inputs])
+        P1:update(P1.posX[#P1.posX], P1.posY[#P1.posY], finalHealthP1, P1.super[#P1.super], P1.stun[#P1.stun], P1.isStunned[#P1.isStunned], hitP1, P1.thrown[#P1.thrown], P1.inputs[#P1.inputs])
+        P2:update(P2.posX[#P2.posX], P2.posY[#P2.posY], finalHealthP2, P2.super[#P2.super], P2.stun[#P2.stun], P2.isStunned[#P2.isStunned], hitP2, P2.thrown[#P2.thrown], P2.inputs[#P2.inputs])
 
         WriteToFile(P1, P2)
 

@@ -67,7 +67,7 @@ processed_replay_number = 0
 while(replay_q.size() > 0):
     replay = replay_q.pop()
     
-    print("Extracting features of replay " + replay[1])
+    print("Extracting features of replay " + path + replay[0])
     # execute in command line: ./fcadefbneo.exe <path-to-filename> <path-to-lua> 
     emu_proc = subprocess.Popen(["./emulator_build/fcadefbneoNormal.exe", path + replay[0], "./feature_extraction.lua"])
     emu_killed = False

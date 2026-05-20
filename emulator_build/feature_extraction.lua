@@ -3,11 +3,8 @@ package.cpath = "lua_libs/socket/core.dll;" .. "lua_libs/mime/core.dll;"
 local socket = require('socket')
 
 -- TODO: 
---      - Refactor Stun management and Hitstun management into a separate function
---      - Hit detection is wrong, after a write to file it crashes cause it checks P1.stun[0]
---      - Check the training mode script for a mapping of the STATE parameter, maybe we can use state to know when a character is in hitstun
---      - If previous doesnt work just remove hit variable
---      -   _player_obj.is_being_thrown = memory.readbyte(_player_obj.base + 0x3CF) ~= 0
+--      - Refactor Stun management and Hitstun management into a separate function [done]
+--      - Test hit detection [done]
 
 Frame_counter = 1
 Buff_size = 100
@@ -32,7 +29,7 @@ StateData =
     inputs = {}
 }
 
-function StateData:new (chid, suid, posx, posy, health, super, maxSuperBar, stun, previousStun, isStunned, hit, inputs)
+function StateData:new (chid, suid, posx, posy, health, super, maxSuperBar, stun, previousStun, isStunned, hit, thrown, inputs)
     local o = {}
     setmetatable(o, {__index = self})
     o.characterId = chid or ""
@@ -45,6 +42,7 @@ function StateData:new (chid, suid, posx, posy, health, super, maxSuperBar, stun
     o.super = super or {}
     o.stun = stun or {}
     o.isStunned = isStunned or {}
+    o.thrown = thrown or {}
     o.hit = hit or {}
     o.inputs = inputs or {}
     return o
@@ -59,10 +57,11 @@ function StateData:wipe()
     self.stun = {}
     self.isStunned = {}
     self.hit = {}
+    self.thrown = {}
     self.inputs = {}
 end
 
-function StateData:update(posx, posy, health, super, stun, isStunned, hit, inputs)
+function StateData:update(posx, posy, health, super, stun, isStunned, hit, thrown, inputs)
     self.previousStun = stun
     table.insert(self.posX, posx)
     table.insert(self.posY, posy)
@@ -71,6 +70,7 @@ function StateData:update(posx, posy, health, super, stun, isStunned, hit, input
     table.insert(self.stun, stun)
     table.insert(self.isStunned, isStunned)
     table.insert(self.hit, hit)
+    table.insert(self.thrown, thrown)
     table.insert(self.inputs, inputs)
 end
 
@@ -86,8 +86,8 @@ function FormatInputs(inputs)
     return BToN[inputs["Left"]] .. "," .. BToN[inputs["Up"]] .. "," .. BToN[inputs["Right"]].. "," .. BToN[inputs["Down"]].. "," .. BToN[inputs["Weak Punch"]].. "," .. BToN[inputs["Medium Punch"]].. "," .. BToN[inputs["Strong Punch"]].. "," .. BToN[inputs["Weak Kick"]].. "," .. BToN[inputs["Medium Kick"]].. "," .. BToN[inputs["Strong Kick"]].. "," .. BToN[inputs["Start"]].. "," .. BToN[inputs["Coin"]]
 end
 
-function FormatValues(posX, posY, health, super, stun, isStunned, hit, inputs)
-    return tostring(posX) .. "," .. tostring(posY) .. "," .. tostring(health) .. "," .. tostring(super) .. "," .. tostring(stun) .. "," .. tostring(isStunned) .. "," .. tostring(hit) .. "," .. FormatInputs(inputs)
+function FormatValues(posX, posY, health, super, stun, isStunned, hit, thrown, inputs)
+    return tostring(posX) .. "," .. tostring(posY) .. "," .. tostring(health) .. "," .. tostring(super) .. "," .. tostring(stun) .. "," .. tostring(isStunned) .. "," .. tostring(hit) .. "," .. tostring(thrown) .. "," .. FormatInputs(inputs)
 end
 
 -- Writing to file function
@@ -95,11 +95,59 @@ function WriteToFile(p1, p2)
     local formatted_data = ""
     for i=1, #p1.posX
     do
-        formatted_data = formatted_data .. tostring(Frame_counter - #p1.posX + i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - #p2.posX + i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.inputs[i]) .. "\n"
+        formatted_data = formatted_data .. tostring(Frame_counter - #p1.posX + i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.thrown[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - #p2.posX + i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.thrown[i], p2.inputs[i]) .. "\n"
     end
     local file = assert(io.open("../features/" .. Filename, "a+"))
     file:write(formatted_data)
     io.close(file)
+end
+
+-- hitstun detection function
+function IsHit(player, hitState, hit, stun, state)
+    if (stun > player.previousStun) or (stun == 0 and player.previousStun > 10)
+    then
+        hit = 1
+        hitState = state
+    end
+
+    if hitState ~= nil
+    then
+        if hitState ~= state -- if the state has changed since the character got hit we can assume they're not in hitstun anymore
+        then
+            hit = 0
+            hitState = nil
+        else
+            hit = 1
+        end
+    end
+    
+    return hit, hitState
+end
+
+function StunHandler(player, stun, stunned, state, isStunned, canRecoverFromStun)
+    if (stun == 0 and player.previousStun > 10) or (not stunned and state == 70)
+    then
+        stunned = true
+    end
+        
+    if state == 70
+    then
+        canRecoverFromStun = true
+    end
+    
+    if stunned
+    then
+        -- First condition means that at one point the character was stunned and now it's not anymore. second means the character was hit while stunned which causes them to not be stunned anymore
+        if (state ~= 70 and canRecoverFromStun) or (stun > 0) 
+        then
+            stunned = false
+            canRecoverFromStun = false
+            isStunned = 0
+        else
+            isStunned = 1
+        end
+    end
+    return stunned, canRecoverFromStun, isStunned
 end
 
 -- General function that gets run every frame
@@ -111,7 +159,8 @@ function FeatureExtraction()
     local superCountP1, superCountP2
     local stunP1, stunP2
     local isStunnedP1, isStunnedP2 = 0, 0
-    local hitP1, hitP2
+    local hitP1, hitP2 = 0, 0
+    local beingThrownP1, beingThrownP2
     local stateP1, stateP2
 
     -- Get current game phase
@@ -135,7 +184,7 @@ function FeatureExtraction()
         Filename = PlayerSide .. "-" .. ChIdToName[tonumber(P1.characterId)] .. tostring(P1.superId+1) .. "-" .. ChIdToName[tonumber(P2.characterId)] .. tostring(P2.superId+1) .. "-" .. QuarkId .. "-" .. RoundNumber .. ".csv"
         -- Filename = ChIdToName[tonumber(P1.characterId)] .. tostring(P1.superId+1) .. "-" .. ChIdToName[tonumber(P2.characterId)] .. tostring(P2.superId+1) .. "-" ..RoundNumber .. ".csv"
         local file = assert(io.open("../features/" .. Filename, "w"))
-        file:write("Frame,Player,PosX,PosY,Health,Meter,Stun,isStunned,Hit,Left,Up,Right,Down,Lp,Mp,Hp,Lk,Mk,Hk,Start,Coin\n")
+        file:write("Frame,Player,PosX,PosY,Health,Meter,Stun,isStunned,Hit,Thrown,Left,Up,Right,Down,Lp,Mp,Hp,Lk,Mk,Hk,Start,Coin\n")
         io.close(file)
 
     elseif in_match == 2 -- after round start
@@ -149,94 +198,20 @@ function FeatureExtraction()
         superCountP1, superCountP2 = memory.readbyte(0x020695BF), memory.readbyte(0x020695EB)
         superP1 = superP1 + superCountP1 * P1.superBarLength
         superP2 = superP2 + superCountP2 * P2.superBarLength
+        -- Throws
+        beingThrownP1, beingThrownP2 = BToN[memory.readbyte(0x02068C6C + 0x3CF) ~= 0], BToN[memory.readbyte(0x02069104 + 0x3CF) ~= 0]
         -- Stun management hell
         stunP1 = bit.rshift(memory.readdword(0x020695F7 + 0x6), 24) -- stun -> 0x02028805  stunstatus -> 0x020695FD
         stunP2 = memory.readbyte(0x02028829)
         stateP1, stateP2 = memory.readbyte(0x02068E75), memory.readbyte(0x020691B3) -- state = 70 means stunned lets go
 
-        if (stunP1 == 0 and P1.previousStun > 10) or (not StunnedP1 and stateP1 == 70)
-        then
-            StunnedP1 = true
-        end
-        if (stunP2 == 0 and P2.previousStun > 10) or (not StunnedP2 and stateP2 == 70)
-        then
-            StunnedP2 = true
-        end
-        
-        if stateP1 == 70
-        then
-            CanRecoverFromStunP1 = true
-        end
-        if stateP2 == 70
-        then
-            CanRecoverFromStunP2 = true
-        end
-        
-        if StunnedP1
-        then
-            -- First condition means that at one point the character was stunned and now it's not anymore. second means the character was hit while stunned which causes them to not be stunned anymore
-            if (stateP1 ~= 70 and CanRecoverFromStunP1) or (stunP1 > 0) 
-            then
-                StunnedP1 = false
-                CanRecoverFromStunP1 = false
-                isStunnedP1 = 0
-            else
-                isStunnedP1 = 1
-            end
-        end
-        
-        if StunnedP2
-        then
-            if (stateP2 ~= 70 and CanRecoverFromStunP2) or (stunP2 > 0) 
-            then
-                StunnedP2 = false
-                CanRecoverFromStunP2 = false
-                isStunnedP2 = 0
-            else
-                isStunnedP2 = 1
-            end
-        end
+        StunnedP1, CanRecoverFromStunP1, isStunnedP1 = StunHandler(P1, stunP1, StunnedP1, stateP1, isStunnedP1, CanRecoverFromStunP1)
+        StunnedP2, CanRecoverFromStunP2, isStunnedP2 = StunHandler(P2, stunP2, StunnedP2, stateP2, isStunnedP2, CanRecoverFromStunP2)
 
         -- hitstun detection
-        local hitByNP1, hitBySP1, hitBySAP1, hitByOtherP1 = memory.readbyte(0x0202884D), memory.readbyte(0x0202884F), memory.readbyte(0x02028859), memory.readbyte(0x02028855)
-        if hitByNP1 + hitBySP1 + hitBySAP1 + hitByOtherP1 > 0 then hitP1 = 1 else hitP1 = 0 end
-        if hitP1 == 0 and stunP1 > P1.previousStun -- sometimes the character is hit but it is not registered by the variables, so get the info from the stun
-        then
-            P1.stun[#P1.stun-1] = 1 -- cause players get hit the frame before stun goes up and health goes down
-            hitP1 = 1
-            HitStateP1 = stateP1
-        end
+        hitP1, HitStateP1 = IsHit(P1, HitStateP1, hitP1, stunP1, stateP1)
+        hitP2, HitStateP2 = IsHit(P2, HitStateP2, hitP2, stunP2, stateP2)
         
-        local hitByNP2, hitBySP2, hitBySAP2, hitByOtherP2 = memory.readbyte(0x02028861), memory.readbyte(0x02028863), memory.readbyte(0x02028869), memory.readbyte(0x0202886D)
-        if hitByNP2 + hitBySP2 + hitBySAP2 + hitByOtherP2 > 0 then hitP2 = 1 else hitP2 = 0 end
-        if hitP2 == 0 and stunP2 > P2.previousStun
-        then
-            P2.stun[#P2.stun - 1] = 1
-            hitP2 = 1
-            HitStateP2 = stateP2
-        end
-
-        if HitStateP1 ~= nil
-        then
-            if HitStateP1 ~= stateP1 -- if the state has changed since the character got hit we can assume they're not in hitstun anymore
-            then
-                hitP1 = 0
-                HitStateP1 = nil
-            else
-                hitP1 = 1
-            end
-        end
-
-        if HitStateP2 ~= nil
-        then
-            if HitStateP2 ~= stateP2
-            then
-                hitP2 = 0
-                HitStateP2 = nil
-            else
-                hitP2 = 1
-            end
-        end
         
         -- DEBUG
         -- if Turbo then emu.speedmode("normal") Turbo = false end
@@ -255,8 +230,8 @@ function FeatureExtraction()
 
         -- print("isStunnedP1: " .. isStunnedP1)
         -- print("isStunnedP2: " .. isStunnedP2)
-        -- print("hit P1: " .. hitP1)
-        -- print("hit P2: " .. hitP2)
+        -- print("being thrown P1: " .. tostring(beingThrownP1))
+        -- print("being thrown P2: " .. tostring(beingThrownP2))
         -- print("state P1: " .. stateP1)
         -- print("state P2: " .. stateP2)
 
@@ -283,8 +258,8 @@ function FeatureExtraction()
         end
         
         -- Update class buffers with current frame state values
-        P1:update(posXP1, posYP1, healthP1, superP1, stunP1, isStunnedP1, hitP1, local_p1_input)
-        P2:update(posXP2, posYP2, healthP2, superP2, stunP2, isStunnedP2, hitP2, local_p2_input)
+        P1:update(posXP1, posYP1, healthP1, superP1, stunP1, isStunnedP1, hitP1, beingThrownP1, local_p1_input)
+        P2:update(posXP2, posYP2, healthP2, superP2, stunP2, isStunnedP2, hitP2, beingThrownP2, local_p2_input)
 
         -- Format everything and write to file
         if Frame_counter % Buff_size == 0
@@ -320,8 +295,8 @@ function FeatureExtraction()
         end
 
         -- update the classes one last time for the end of match result (inputs are the same as previous frame for convenience)
-        P1:update(P1.posX[#P1.posX], P1.posY[#P1.posY], finalHealthP1, P1.super[#P1.super], P1.stun[#P1.stun], P1.isStunned[#P1.isStunned], hitP1, P1.inputs[#P1.inputs])
-        P2:update(P2.posX[#P2.posX], P2.posY[#P2.posY], finalHealthP2, P2.super[#P2.super], P2.stun[#P2.stun], P2.isStunned[#P2.isStunned], hitP2, P2.inputs[#P2.inputs])
+        P1:update(P1.posX[#P1.posX], P1.posY[#P1.posY], finalHealthP1, P1.super[#P1.super], P1.stun[#P1.stun], P1.isStunned[#P1.isStunned], hitP1, P1.thrown[#P1.thrown], P1.inputs[#P1.inputs])
+        P2:update(P2.posX[#P2.posX], P2.posY[#P2.posY], finalHealthP2, P2.super[#P2.super], P2.stun[#P2.stun], P2.isStunned[#P2.isStunned], hitP2, P2.thrown[#P2.thrown], P2.inputs[#P2.inputs])
 
         WriteToFile(P1, P2)
 
@@ -354,9 +329,7 @@ function FeatureExtraction()
         then
             Tcp:close()
             Tcp = assert(socket.tcp())
-            Tcp:settimeout(0.5) -- make pings non blocking so that the emulator doesnt crash
             Tcp:connect(Host, Port)
-            Tcp:settimeout(0) -- make pings non blocking so that the emulator doesnt crash
             Tcp:send("still recording!\n")
         end
     end
