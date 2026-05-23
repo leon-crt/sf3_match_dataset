@@ -138,8 +138,11 @@ for replay in replayList:
     data = []
     with open(feat_path + '/' + replay, newline='') as f:
         data = np.array(list(csv.reader(f)))
-    p1Health = int(data[-2, 4])
-    p2Health = int(data[-1, 4])
+    try:
+        p1Health = int(data[-2, 4])
+        p2Health = int(data[-1, 4])
+    except(IndexError):
+        continue
     if p1Health > 0 and p2Health  > 0:
         os.remove(feat_path + '/' + replay)
         incomplete_counter += 1
