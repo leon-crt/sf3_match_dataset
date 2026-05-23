@@ -1,4 +1,3 @@
-import json
 import os
 import re
 import subprocess
@@ -9,7 +8,9 @@ import win32gui
 import win32api
 import win32con
 import sys
-
+import csv
+import numpy as np
+import pathlib
 
 # WEBSOCKET STUFF
 HOST = "127.0.0.1"
@@ -122,3 +123,49 @@ while(replay_q.size() > 0):
         time.sleep(1) # not sure if this is necessary but wouldn't want overlapping instances of the emulator
 
 print("Finished processing replays, processed a total of: " + str(processed_replay_number))
+
+print("Starting cleaning phase")
+
+feat_path = 'features'
+replayList = os.listdir(feat_path)
+incomplete_counter = 0
+
+# cleaning phase: eliminate all feature files that aren't complete (where the last row health is not 0 for either player, means the round was not finished)
+for replay in replayList:
+    fileExt = replay[-3:]
+    if fileExt != 'csv':
+        continue
+    data = []
+    with open(feat_path + '/' + replay, newline='') as f:
+        data = np.array(list(csv.reader(f)))
+    p1Health = int(data[-2, 4])
+    p2Health = int(data[-1, 4])
+    if p1Health > 0 and p2Health  > 0:
+        os.remove(feat_path + '/' + replay)
+        incomplete_counter += 1
+        print("file: " + replay + " incomplete or faulty, removing")
+
+print("Removed a total of " + str(incomplete_counter) + " incomplete or faulty feature files")
+
+print("Starting Organization in Folders")
+replayList = os.listdir(feat_path)
+# organize the remaining replays into separate folders based on characters used
+for replay in replayList:
+    # extract character names of player and opponent
+    try:
+        playerSide = int(replay[0]) - 1
+    except(ValueError): # this means the file is not a valid feature file, maybe created by test or directory, skip to next file
+        continue
+    chSeparatorInd = replay[2:].find("-") + 2
+    p1 = replay[2:chSeparatorInd]
+    endMarkerInd = replay[chSeparatorInd+1:].find("-") + chSeparatorInd+1
+    p2 = replay[chSeparatorInd + 1:endMarkerInd]
+    players = [p1, p2]
+
+    # try to move the file to the path following the structure <player character>/<opponent character>/
+    try:
+        os.rename(feat_path + '/' + replay, feat_path + '/' + players[playerSide] + '/' + players[1-playerSide] + '/' + replay)
+    # if it does not exist create it
+    except:
+        pathlib.Path(feat_path + '/' + players[playerSide] + '/' + players[1-playerSide]).mkdir(parents=True, exist_ok=True)
+        os.rename(feat_path + '/' + replay, feat_path + '/' + players[playerSide] + '/' + players[1-playerSide] + '/' + replay)

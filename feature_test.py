@@ -33,6 +33,7 @@ def test_ranges(data, playerLabel):
     plt.plot(isStunned*10, '-', label='isStunned')
     plt.plot(health, '-.', label="health",)
     plt.plot(thrown*health, '-.', label="thrown")
+    plt.plot(meter, '-.', label='meter')
 
     plt.xlabel("Frames")
     plt.ylabel("State variables value")
@@ -41,6 +42,6 @@ def test_ranges(data, playerLabel):
     plt.show()
 
 
-dataP1, dataP2 = load_file("features/", "Akuma3-Makoto2-4.csv")
+dataP1, dataP2 = load_file("features/Makoto2/Akuma1/", "2-Akuma1-Makoto2-1770485490476-1711-2.csv")
 test_ranges(dataP1, 'P1')
 test_ranges(dataP2, 'P2')
