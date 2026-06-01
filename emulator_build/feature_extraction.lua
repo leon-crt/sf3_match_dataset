@@ -98,7 +98,7 @@ function WriteToFile(p1, p2)
     local formatted_data = ""
     for i=1, #p1.posX
     do
-        formatted_data = formatted_data .. tostring(Frame_counter - #p1.posX + i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.thrown[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - #p2.posX + i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.thrown[i], p2.inputs[i]) .. "\n"
+        formatted_data = formatted_data .. tostring(Frame_counter - #p1.posX + i) .. ",".. ChIdToName[P1.characterId] .. "," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.thrown[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - #p2.posX + i) .. ",".. ChIdToName[P2.characterId] .. "," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.thrown[i], p2.inputs[i]) .. "\n"
     end
     local file = assert(io.open("../features/" .. Filename, "a+"))
     file:write(formatted_data)
@@ -348,4 +348,4 @@ QuarkId = Tcp:receive('*l')
 Tcp:send("received quarkid")
 PlayerSide = Tcp:receive(1)
 
-emu.registerafter(FeatureExtraction)
+emu.registerbefore(FeatureExtraction)

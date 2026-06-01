@@ -3,8 +3,8 @@ package.cpath = "lua_libs/socket/core.dll;" .. "lua_libs/mime/core.dll;"
 local socket = require('socket')
 
 -- TODO: 
---      - isStunned gets set to 1 even when no stun damage was done [test]
---      - make sure hit is detected through health value fluctuation not stun [test]
+--      - isStunned gets set to 1 even when no stun damage was done [done]
+--      - make sure hit is detected through health value fluctuation not stun [done]
 
 Frame_counter = 1
 Buff_size = 100
@@ -98,7 +98,7 @@ function WriteToFile(p1, p2)
     local formatted_data = ""
     for i=1, #p1.posX
     do
-        formatted_data = formatted_data .. tostring(Frame_counter - #p1.posX + i) .. ",P1," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.thrown[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - #p2.posX + i) .. ",P2," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.thrown[i], p2.inputs[i]) .. "\n"
+        formatted_data = formatted_data .. tostring(Frame_counter - #p1.posX + i) .. ",".. ChIdToName[P1.characterId] .. "," .. FormatValues(p1.posX[i], p1.posY[i], p1.health[i], p1.super[i], p1.stun[i], p1.isStunned[i], p1.hit[i], p1.thrown[i], p1.inputs[i]) .. "\n" .. tostring(Frame_counter - #p2.posX + i) .. ",".. ChIdToName[P2.characterId] .. "," .. FormatValues(p2.posX[i], p2.posY[i], p2.health[i], p2.super[i], p2.stun[i], p2.isStunned[i], p2.hit[i], p2.thrown[i], p2.inputs[i]) .. "\n"
     end
     local file = assert(io.open("../features/" .. Filename, "a+"))
     file:write(formatted_data)
@@ -183,7 +183,7 @@ function FeatureExtraction()
         print("ch.ID P1: " .. P1.characterId, "- ch.ID P2: " .. P2.characterId)
         print("super ID P1: " .. P1.superId, "- super ID P2: " .. P2.superId)
         -- Create csv file and set headers
-        --Filename = PlayerSide .. "-" .. ChIdToName[tonumber(P1.characterId)] .. tostring(P1.superId+1) .. "-" .. ChIdToName[tonumber(P2.characterId)] .. tostring(P2.superId+1) .. "-" .. QuarkId .. "-" .. RoundNumber .. ".csv"
+        -- Filename = PlayerSide .. "-" .. ChIdToName[tonumber(P1.characterId)] .. tostring(P1.superId+1) .. "-" .. ChIdToName[tonumber(P2.characterId)] .. tostring(P2.superId+1) .. "-" .. QuarkId .. "-" .. RoundNumber .. ".csv"
         Filename = ChIdToName[tonumber(P1.characterId)] .. tostring(P1.superId+1) .. "-" .. ChIdToName[tonumber(P2.characterId)] .. tostring(P2.superId+1) .. "-" ..RoundNumber .. ".csv"
         local file = assert(io.open("../features/" .. Filename, "w"))
         file:write("Frame,Player,PosX,PosY,Health,Meter,Stun,isStunned,Hit,Thrown,Left,Up,Right,Down,Lp,Mp,Hp,Lk,Mk,Hk,Start,Coin\n")
@@ -205,7 +205,7 @@ function FeatureExtraction()
         -- Stun management hell
         stunP1 = bit.rshift(memory.readdword(0x020695F7 + 0x6), 24) -- stun -> 0x02028805  stunstatus -> 0x020695FD
         stunP2 = memory.readbyte(0x02028829)
-        stateP1, stateP2 = memory.readbyte(0x02068E75), memory.readbyte(0x020691B3) -- state = 70 means stunned lets go
+        stateP1, stateP2 = memory.readbyte(0x02068E75), memory.readbyte(0x020691B3)
 
         StunnedP1, CanRecoverFromStunP1, isStunnedP1 = StunHandler(P1, stunP1, StunnedP1, stateP1, isStunnedP1, CanRecoverFromStunP1)
         StunnedP2, CanRecoverFromStunP2, isStunnedP2 = StunHandler(P2, stunP2, StunnedP2, stateP2, isStunnedP2, CanRecoverFromStunP2)
@@ -213,8 +213,7 @@ function FeatureExtraction()
         -- hitstun detection
         hitP1, HitStateP1 = IsHit(P1, HitStateP1, hitP1, healthP1, stateP1)
         hitP2, HitStateP2 = IsHit(P2, HitStateP2, hitP2, healthP2, stateP2)
-        
-        
+
         -- DEBUG
         if Turbo then emu.speedmode("normal") Turbo = false end
         -- print("position P1: " .. posXP1 .. ", " .. posYP1)
@@ -223,19 +222,19 @@ function FeatureExtraction()
         -- print("health P2: " .. healthP2)
         -- print("super P1: " .. superP1)
         -- print("super P2: " .. superP2)
-        print("stun P1: " .. stunP1)
-        print("stun P2: " .. stunP2)
+        -- print("stun P1: " .. stunP1)
+        -- print("stun P2: " .. stunP2)
         -- print("previous Stun old method P1: " .. previousStunP1)
         -- print("previous Stun old method P2: " .. previousStunP2)
-        print("previous Stun new method P1: " .. P1.previousStun)
-        print("previous Stun new method P1: " .. P2.previousStun)
+        -- print("previous Stun new method P1: " .. P1.previousStun)
+        -- print("previous Stun new method P1: " .. P2.previousStun)
 
-        print("isStunnedP1: " .. isStunnedP1)
-        print("isStunnedP2: " .. isStunnedP2)
+        -- print("isStunnedP1: " .. isStunnedP1)
+        -- print("isStunnedP2: " .. isStunnedP2)
         -- print("being thrown P1: " .. tostring(beingThrownP1))
         -- print("being thrown P2: " .. tostring(beingThrownP2))
-        print("state P1: " .. stateP1)
-        print("state P2: " .. stateP2)
+        -- print("state P1: " .. stateP1)
+        -- print("state P2: " .. stateP2)
 
         -- Extract environment info (whether an enemy projectile is on the screen and its position)
         -- skip for now because it requires scanning through hitboxes and likely we can't have only one projectile but we need all of them (30 max) which means
@@ -258,10 +257,12 @@ function FeatureExtraction()
                 local_p2_input[string.sub(input,4,-1)] = value
             end
         end
-        
         -- Update class buffers with current frame state values
         P1:update(posXP1, posYP1, healthP1, superP1, stunP1, isStunnedP1, hitP1, beingThrownP1, local_p1_input)
         P2:update(posXP2, posYP2, healthP2, superP2, stunP2, isStunnedP2, hitP2, beingThrownP2, local_p2_input)
+        print('P1 inps: ' .. tostring(P1.inputs[#P1.inputs]))
+        print('P2 inps: ' .. tostring(P2.inputs[#P2.inputs]))
+
 
         -- Format everything and write to file
         if Frame_counter % Buff_size == 0
@@ -339,7 +340,7 @@ function FeatureExtraction()
     -- end
 end
 
--- Get quarkid from TCP socket with main python script
+-- -- Get quarkid from TCP socket with main python script
 -- QuarkId = ""
 -- Host, Port = "127.0.0.1", 42069
 -- Tcp = assert(socket.tcp())
@@ -349,4 +350,4 @@ end
 -- Tcp:send("received quarkid")
 -- PlayerSide = Tcp:receive(1)
 
-emu.registerafter(FeatureExtraction)
+emu.registerbefore(FeatureExtraction)
