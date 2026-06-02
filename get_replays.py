@@ -92,8 +92,11 @@ def getReplays(limit, offset, username, cookies, ua, url):
         },
         impersonate="chrome110" 
     )
-
-    replay_resp = response.json()
+    try:
+        replay_resp = response.json()
+    except:
+        print('Invalid API response')
+        return [], -1
     replays = []
     if len(replay_resp['results']) <= 1:
         return replays # no more replays to be found
@@ -121,6 +124,7 @@ cookies = {}
 offset = 0
 username = ""
 config = {}
+MAX_RETRIES = 5
 
 # second cmdline arg which is username of who we want the replays of
 if len(sys.argv) > 1:
@@ -170,8 +174,19 @@ replay_buf = Queue([])
 print("Initiating Replay Recording")
 
 # Collection loop that will be interrupted when no more replays are returned by the API call
+api_retries = 0
 while(True):
     replays, total_fetched = getReplays(100, offset, username, cookies, ua, url)
+    # handle case of invalid API response (bad internet connection or some other temporary problem)
+    if total_fetched == -1:
+        api_retries += 1
+        if api_retries > MAX_RETRIES:
+            print('Exceeded max reconnection attempts - exiting program')
+            sys.exit()
+        continue
+    else:
+        api_retries = 0 # reset retry count whenever the API call is successful
+
     if len(replays) < 1:
         print('No More Replays were returned by the API call, processed a total of ' + str(offset) + ' replays')
         break
